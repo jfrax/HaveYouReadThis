@@ -11,7 +11,16 @@ namespace HaveYouReadThis
         public void InitMod(Mod modInstance)
         {
             ModEvents.PlayerSpawnedInWorld.RegisterHandler(PlayerSpawnedInWorld);
+            ModEvents.GameStartDone.RegisterHandler(GameStartDone);
             new Harmony(this.GetType().ToString()).PatchAll(Assembly.GetExecutingAssembly());
+        }
+
+        private void GameStartDone(ref ModEvents.SGameStartDoneData data)
+        {
+            if (ConnectionManager.Instance.IsServer)
+            {
+                ProgressionInfo.LoadProgressionsFromDisk();
+            }
         }
 
         private static bool _mySpawnDone;
@@ -19,9 +28,10 @@ namespace HaveYouReadThis
         private void PlayerSpawnedInWorld(ref ModEvents.SPlayerSpawnedInWorldData data)
         {
             _mySpawnDone = true;
-
             if (!ConnectionManager.Instance.IsServer)
                 return;
+
+            ProgressionInfo.LoadProgressionsFromDisk();
 
             var spawningEntityId = data.EntityId;
             var spawnedPlayer =
@@ -113,6 +123,25 @@ namespace HaveYouReadThis
                         value += ProgressionInfo.GetPartyProgressString(__instance?.itemClass?.Unlocks);
                     }
                 }
+            }
+        }
+
+        [HarmonyPatch(typeof(GameManager), nameof(GameManager.SaveWorld))]
+        public static class GameManager_SaveWorld_Patch
+        {
+            private static void Postfix()
+            {
+                ProgressionInfo.SaveProgressionsToDisk();
+            }
+        }
+
+        [HarmonyPatch(typeof(GameManager), nameof(GameManager.PersistentPlayerEvent))]
+        public static class GameManager_PersistentPlayerEvent_Patch
+        {
+            private static void Postfix(GameManager __instance, PlatformUserIdentifierAbs playerID,
+                PlatformUserIdentifierAbs otherPlayerID, EnumPersistentPlayerDataReason reason)
+            {
+                ProgressionInfo.RefreshLocalIconInfo();
             }
         }
     }

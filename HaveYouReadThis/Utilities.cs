@@ -1,4 +1,7 @@
-﻿namespace HaveYouReadThis
+﻿using System.IO;
+using UniLinq;
+
+namespace HaveYouReadThis
 {
     public static class Utilities
     {
@@ -26,9 +29,22 @@
             return null;
         }
 
+        public static bool IsAlliesWithLocalPlayer(string playerStableId)
+        {
+            if (!LocalPlayerExists())
+                return false;
+            
+            return GameManager.Instance.myEntityPlayerLocal?.persistentPlayerData?.ACL?.Any(acl => acl.CombinedString == playerStableId) ?? false;
+            
+        }
+
         public static bool LocalPlayerExists()
         {
             return GameManager.Instance.myEntityPlayerLocal != null;
         }
+        
+        public static string ModSaveDir =>
+            Path.Combine(ConnectionManager.Instance.IsServer ? GameIO.GetSaveGameDir() : GameIO.GetSaveGameLocalDir(),
+                "Mods", "HaveYouReadThis");
     }
 }
