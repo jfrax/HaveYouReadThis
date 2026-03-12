@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 
@@ -108,6 +110,42 @@ namespace HaveYouReadThis
 
                 return GameManager.Instance.myEntityPlayerLocal.Progression.ProgressionValueQuickList.Any(x =>
                     x == progressionValue);
+            }
+        }
+        
+        [HarmonyPatch(typeof(EntityBuffs), "SetCustomVar")]
+        public static class EntityBuffs_SetCustomVar_Patch
+        {
+            static void Postfix(EntityBuffs __instance, string _name, float _value, bool _netSync,
+                CVarOperation _operation)
+            {
+                //This gets called constantly for non-schematic buffs. For perf, we will escape here if it's in a known list of frequent callers
+                if (Utilities.IgnoredBuffs.Contains(_name))
+                    return;
+                
+                if (!EntityBuffIsForLocalPlayer(__instance))
+                    return;
+
+                var stableId = Utilities.GetStablePlayerId(GameManager.Instance.myEntityPlayerLocal);
+                
+                //check if the 'buff' is actually an unlocked item recipe
+                if (!ProgressionInfo.ProgressionKeyExists(stableId, _name.ToLower()))
+                    return;
+                
+                var newValue = (int)__instance.CVars[_name];
+                
+                if (ConnectionManager.Instance.IsServer)
+                    ProgressionInfo.UpdateForPlayer(stableId, _name.ToLower(), newValue);
+
+                NetHelpers.ClientSendIndividualSkillState(_name.ToLower(), newValue);
+            }
+
+            private static bool EntityBuffIsForLocalPlayer(EntityBuffs buffs)
+            {
+                if (!Utilities.LocalPlayerExists())
+                    return false;
+                
+                return buffs.parent == GameManager.Instance.myEntityPlayerLocal;
             }
         }
 

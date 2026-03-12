@@ -23,6 +23,23 @@ namespace HaveYouReadThis
         [JsonProperty] private int maxLevel;
         [JsonIgnore] private bool IsMaxed => currentLevel >= maxLevel;
 
+        public static bool ProgressionKeyExists(string playerStableId, string progressionKey)
+        {
+            if (string.IsNullOrEmpty(playerStableId))
+            {
+                Log.Warning("PlayerStableId is null or empty");
+                Log.Warning($"progressionKey was {progressionKey}");
+                return false;
+            }
+            if (string.IsNullOrEmpty(progressionKey))
+            {
+                Log.Warning("ProgressionKey is null or empty");
+                return false;
+            }
+                
+            return AllPlayerProgressions.TryGetValue(playerStableId, out var playerData) &&
+                   playerData.Progressions.ContainsKey(progressionKey);
+        }
 
         public static void AddForPlayer(string playerStableId, Dictionary<string, ProgressionInfo> progressionInfos)
         {
@@ -98,16 +115,31 @@ namespace HaveYouReadThis
 
             foreach (var itemClass in ItemClass.list.Where(HasUnlock))
             {
+                //1. skill books / magazines are progressions:
                 var pv = player?.Progression?.ProgressionValues?.Get(itemClass.Unlocks);
 
-                if (pv?.Name == null)
-                    continue;
-
-                result[pv.Name.ToLower()] = new ProgressionInfo
+                if (pv?.Name != null)
                 {
-                    currentLevel = pv.Level,
-                    maxLevel = pv.CalculatedMaxLevel(player)
-                };
+                    result[pv.Name.ToLower()] = new ProgressionInfo
+                    {
+                        currentLevel = pv.Level,
+                        maxLevel = pv.CalculatedMaxLevel(player)
+                    };
+                }
+                //2. item mods etc are recipes - if there's already a player buff for it, we'll add that with the level (otherwise, init to 0):
+                else
+                {
+                    var lvl = 0;
+                    if (player?.Buffs?.CVars?.TryGetValue(itemClass.Unlocks, out var fLearned) ?? false)
+                    {
+                        lvl = (int)fLearned;
+                    }
+                    result[itemClass.Unlocks.ToLower()] = new ProgressionInfo
+                    {
+                        currentLevel = lvl,
+                        maxLevel = 1
+                    };
+                }
             }
 
             return result;
@@ -133,7 +165,6 @@ namespace HaveYouReadThis
                 sb.AppendLine();
                 sb.AppendLine($"{localPlayer.PlayerDisplayName} : {myInfo.currentLevel} / {myInfo.maxLevel}");
             }
-
 
             foreach (var other in GetOtherPlayers(myId))
             {

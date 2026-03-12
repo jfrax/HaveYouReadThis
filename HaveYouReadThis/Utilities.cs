@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using UniLinq;
 
 namespace HaveYouReadThis
@@ -46,5 +48,84 @@ namespace HaveYouReadThis
         public static string ModSaveDir =>
             Path.Combine(ConnectionManager.Instance.IsServer ? GameIO.GetSaveGameDir() : GameIO.GetSaveGameLocalDir(),
                 "Mods", "HaveYouReadThis");
+        
+        public static readonly HashSet<string> IgnoredBuffs = new HashSet<string>(StringComparer.Ordinal)
+        {
+            ".ArmorMediumWorn",
+            "_biomeradiation",
+            "_carrycapacity",
+            "_coretemp",
+            "_degreesabsorbed",
+            "_encumberedslots",
+            "_encumbrance",
+            "_expdeficit",
+            "_lightlevel",
+            "_noiselevel",
+            "_outsidetemp",
+            "_shaded",
+            "_sheltered",
+            "_underwater",
+            "_wetnessrate",
+            ".ArmorHeavyMobility",
+            ".ArmorHeavyStaminaRun",
+            ".ArmorHeavyStaminaWalk",
+            ".ArmorHeavyWorn",
+            ".ArmorLightLevel",
+            ".ArmorLightTotal",
+            ".ArmorLightWorn",
+            ".ArmorMediumMobility",
+            ".ArmorMediumStaminaRun",
+            ".ArmorMediumStaminaWalk",
+            ".BurntHazardTimerDisplay",
+            ".DesertHazardTimerDisplay",
+            ".insulationT1Total",
+            ".insulationT2Total",
+            ".insulationT3Total",
+            ".insulationTotal",
+            ".SnowHazardTimerDisplay",
+            ".WastelandHazardTimerDisplay",
+            "$BiomeBadgeLevel",
+            "$BurntHazardTimer",
+            "$critHitNaturalHealingRate",
+            "$DesertHazardTimer",
+            "$DrowningTimerMax",
+            "$encumbranceEffect",
+            "$maxBleedCounter",
+            "$medicRegHealthIncreaseSpeed",
+            "$MetabolismDuration",
+            "$MetabolismResist",
+            "$parkourBonus",
+            "$perkBookwormChance",
+            "$PlayerLevelBonus",
+            "$SnowHazardTimer",
+            "$treatedCritHealing",
+            "$treatedCritHealingBonuses",
+            "$WastelandHazardTimer",
+            "foodHealthFarmer",
+            "foodHealthFarmerMulti",
+            "foodHealthFarmerSub",
+            "smell",
+            "_notAlerted",
+            "_difficulty",
+            "_equipReload",
+            "$BurntHazardTimerMax",
+            "$DesertHazardTimerMax",
+            "$SnowHazardTimerMax",
+            "$WastelandHazardTimerMax",
+            "$infectionMaxDuration",
+            "$dysenteryMaxDuration",
+            "$doingHealingWrong",
+            "$BiomeProgressionOn",
+            "$xpFromLootThisLevel",
+            "$xpFromHarvestingThisLevel",
+            "$xpFromKillThisLevel",
+            "$xpFromLootLast",
+            "$xpFromHarvestingLast",
+            "$xpFromKillLast",
+            "$LastPlayerLevel",
+            "_xpOther",
+            "modGunRetractingStock",
+            "_difficulty"
+        };
     }
 }

@@ -1,7 +1,7 @@
 ﻿<xml>
 	<Name value="HaveYouReadThis"/>
 	<DisplayName value="Have You Read This"/>
-	<Version value="3.0.0"/>
+	<Version value="4.0.0"/>
 	<Description value="Displays info on whether party members have read books/magazines"/>
 	<Author value="jfrax"/>
 	<Credits value=""/>
