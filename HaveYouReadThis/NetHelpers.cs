@@ -4,18 +4,26 @@ namespace HaveYouReadThis
 {
     public class NetHelpers
     {
+        
         public static void ClientSendIndividualSkillState(string skillName, int newSkillLevel)
         {
+            HLog.Debug($"ClientSendIndividualSkillState called - Mod Disabled: {Utilities.MOD_DISABLED}");
+            
+            if (Utilities.MOD_DISABLED)
+                return;
+
             var pkg = NetPackageManager.GetPackage<NetPackageIndividualSkillState>().Setup(
                 Utilities.GetStablePlayerId(GameManager.Instance.myEntityPlayerLocal), skillName, newSkillLevel);
             
             //if we aren't on the server, we need to send it to the server and they will broadcast to everyone.
             if (!ConnectionManager.Instance.IsServer)
             {
+                HLog.Debug($"ClientSendIndividualSkillState - NOT on server");
                 ConnectionManager.Instance.SendToServer(pkg);    
             }
             else //otherwise, we can just directly broadcast to everyone else.
             {
+                HLog.Debug($"ClientSendIndividualSkillState - On server");
                 ConnectionManager.Instance.SendPackage(pkg);
             }
         }

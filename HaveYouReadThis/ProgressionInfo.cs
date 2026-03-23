@@ -23,20 +23,18 @@ namespace HaveYouReadThis
         [JsonProperty] private int maxLevel;
         [JsonIgnore] private bool IsMaxed => currentLevel >= maxLevel;
 
+        public static void Reset()
+        {
+            AllPlayerProgressions = new Dictionary<string, ProgressionInfoPlayerEntry>();
+        }
+
         public static bool ProgressionKeyExists(string playerStableId, string progressionKey)
         {
-            if (string.IsNullOrEmpty(playerStableId))
+            if (string.IsNullOrEmpty(playerStableId) || string.IsNullOrEmpty(progressionKey))
             {
-                Log.Warning("PlayerStableId is null or empty");
-                Log.Warning($"progressionKey was {progressionKey}");
                 return false;
             }
-            if (string.IsNullOrEmpty(progressionKey))
-            {
-                Log.Warning("ProgressionKey is null or empty");
-                return false;
-            }
-                
+
             return AllPlayerProgressions.TryGetValue(playerStableId, out var playerData) &&
                    playerData.Progressions.ContainsKey(progressionKey);
         }
@@ -134,6 +132,7 @@ namespace HaveYouReadThis
                     {
                         lvl = (int)fLearned;
                     }
+
                     result[itemClass.Unlocks.ToLower()] = new ProgressionInfo
                     {
                         currentLevel = lvl,

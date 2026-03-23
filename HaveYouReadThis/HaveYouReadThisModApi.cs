@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using HarmonyLib;
+using mumblelib;
 
 // ReSharper disable InconsistentNaming
 
@@ -12,6 +13,7 @@ namespace HaveYouReadThis
     {
         public void InitMod(Mod modInstance)
         {
+            HLog.SetLogLevel();
             ModEvents.PlayerSpawnedInWorld.RegisterHandler(PlayerSpawnedInWorld);
             ModEvents.GameStartDone.RegisterHandler(GameStartDone);
             new Harmony(this.GetType().ToString()).PatchAll(Assembly.GetExecutingAssembly());
@@ -20,9 +22,7 @@ namespace HaveYouReadThis
         private void GameStartDone(ref ModEvents.SGameStartDoneData data)
         {
             if (ConnectionManager.Instance.IsServer)
-            {
                 ProgressionInfo.LoadProgressionsFromDisk();
-            }
         }
 
         private static bool _mySpawnDone;
@@ -30,11 +30,26 @@ namespace HaveYouReadThis
         private void PlayerSpawnedInWorld(ref ModEvents.SPlayerSpawnedInWorldData data)
         {
             _mySpawnDone = true;
+
+            if (data.IsLocalPlayer)
+                ProgressionInfo.Reset();
+            
+            if (!NetPackageManager.packageClassToPackageId.ContainsKey(typeof(NetPackageIndividualSkillState)))
+            {
+                Utilities.MOD_DISABLED = true;
+                var msg = "HaveYouReadThis Mod Not Found On Server - Disabling";
+                Log.Warning(msg);
+                GameManager.ShowTooltip(GameManager.Instance.myEntityPlayerLocal, msg);
+                return;
+            }
+
+            Utilities.MOD_DISABLED = false;
+
             if (!ConnectionManager.Instance.IsServer)
                 return;
-
+            
             ProgressionInfo.LoadProgressionsFromDisk();
-
+            
             var spawningEntityId = data.EntityId;
             var spawnedPlayer =
                 GameManager.Instance.World.Players.list.FirstOrDefault(x => x.entityId == spawningEntityId);
@@ -125,7 +140,7 @@ namespace HaveYouReadThis
                 
                 if (!EntityBuffIsForLocalPlayer(__instance))
                     return;
-
+                
                 var stableId = Utilities.GetStablePlayerId(GameManager.Instance.myEntityPlayerLocal);
                 
                 //check if the 'buff' is actually an unlocked item recipe

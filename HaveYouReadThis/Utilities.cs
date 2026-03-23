@@ -7,6 +7,8 @@ namespace HaveYouReadThis
 {
     public static class Utilities
     {
+        public static bool MOD_DISABLED { get; set; }
+
         public static string GetStablePlayerId(EntityPlayer player)
         {
             if (player == null)
