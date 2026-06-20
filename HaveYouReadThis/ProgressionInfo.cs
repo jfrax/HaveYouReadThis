@@ -104,7 +104,38 @@ namespace HaveYouReadThis
                 }
             }
 
-            localPlayer?.PlayerUI?.xui?.RefreshAllWindows();
+            var xui = localPlayer?.PlayerUI?.xui;
+
+            // Refreshes the backpack/inventory grid icons (XUiC_ItemStack honours the dirty flag).
+            xui?.RefreshAllWindows();
+
+            // The item info window's description text (our GetPartyProgressString append) needs
+            // special handling on 3.0: XUiC_ItemInfoWindow.Update now overwrites its own IsDirty
+            // flag every frame based solely on the Inspect/Shift key, so a plain RefreshAllWindows
+            // no longer makes it rebuild. We force the currently-shown window to rebuild directly,
+            // which is exactly what reselecting an item does.
+            ForceItemInfoWindowRefresh(xui);
+        }
+
+        private static readonly string[] ItemInfoWindowGroups = { "backpack", "crafting", "looting", "vehicle" };
+
+        private static void ForceItemInfoWindowRefresh(XUi xui)
+        {
+            if (xui == null)
+                return;
+
+            foreach (var groupName in ItemInfoWindowGroups)
+            {
+                var windowGroup = xui.FindWindowGroupByName(groupName);
+                var infoWindow = windowGroup?.GetChildByType<XUiC_ItemInfoWindow>();
+
+                // Only the visible window with an active item selection needs rebuilding.
+                if (infoWindow?.ViewComponent == null || !infoWindow.ViewComponent.IsVisible)
+                    continue;
+
+                if (infoWindow.selectedItemStack != null)
+                    infoWindow.SetItemStack(infoWindow.selectedItemStack);
+            }
         }
 
         public static Dictionary<string, ProgressionInfo> GetPlayerProgressionInfo(EntityPlayer player)

@@ -188,11 +188,15 @@ namespace HaveYouReadThis
             }
         }
 
-        [HarmonyPatch(typeof(GameManager), nameof(GameManager.PersistentPlayerEvent))]
-        public static class GameManager_PersistentPlayerEvent_Patch
+        // 3.0 removed GameManager.PersistentPlayerEvent. Ally relationships now flow through
+        // AllyStore. AllyUpdateResponse is the single choke point that runs on whichever
+        // machine applies an ally change (server via ProcessAllyRequest, client via
+        // NetPackageAllyResponse.ProcessPackage), so it is the equivalent hook for refreshing
+        // our local icon overlay when allies are added/removed.
+        [HarmonyPatch(typeof(AllyStore), nameof(AllyStore.AllyUpdateResponse))]
+        public static class AllyStore_AllyUpdateResponse_Patch
         {
-            private static void Postfix(GameManager __instance, PlatformUserIdentifierAbs playerID,
-                PlatformUserIdentifierAbs otherPlayerID, EnumPersistentPlayerDataReason reason)
+            private static void Postfix()
             {
                 ProgressionInfo.RefreshLocalIconInfo();
             }

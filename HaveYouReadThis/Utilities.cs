@@ -35,11 +35,27 @@ namespace HaveYouReadThis
 
         public static bool IsAlliesWithLocalPlayer(string playerStableId)
         {
-            if (!LocalPlayerExists())
+            if (!LocalPlayerExists() || string.IsNullOrEmpty(playerStableId))
                 return false;
-            
-            return GameManager.Instance.myEntityPlayerLocal?.persistentPlayerData?.ACL?.Any(acl => acl.CombinedString == playerStableId) ?? false;
-            
+
+            // 3.0 replaced PersistentPlayerData.ACL with a separate AllyStore living on
+            // GameManager.persistentPlayers.Allies. The store is networked to clients, so it
+            // works for offline allies too. We enumerate the local player's allies and match
+            // on the stable id (PrimaryId.CombinedString) we cache everywhere else.
+            var localId = GameManager.Instance.persistentLocalPlayer?.PrimaryId
+                          ?? GameManager.Instance.myEntityPlayerLocal?.persistentPlayerData?.PrimaryId;
+
+            var allies = GameManager.Instance.persistentPlayers?.Allies;
+            if (localId == null || allies == null)
+                return false;
+
+            foreach (var ally in allies.EnumerateAllies(localId))
+            {
+                if (ally != null && ally.CombinedString == playerStableId)
+                    return true;
+            }
+
+            return false;
         }
 
         public static bool LocalPlayerExists()
