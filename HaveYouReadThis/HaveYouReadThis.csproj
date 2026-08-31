@@ -39,6 +39,55 @@
         <SevenDTDManagedDir Condition="'$(SevenDTDManagedDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\7 Days To Die\7DaysToDie_Data\Managed</SevenDTDManagedDir>
     </PropertyGroup>
 
+    <!-- =====================================================================================
+         Compile against the game's own Unity/Mono BCL, not the .NET Framework targeting pack.
+
+         Unity's mscorlib defines System.ReadOnlySpan<T>; the net48 reference assemblies do not.
+         Assembly-CSharp's PooledBinaryWriter declares Write(ReadOnlySpan<byte>) /
+         Write(ReadOnlySpan<char>) overloads whose signatures name mscorlib!System.ReadOnlySpan`1,
+         so overload resolution on *any* writer.Write(...) call needs that type to exist in
+         mscorlib - otherwise every call site fails with CS0518.
+
+         ResolveAssemblyReference normally rewrites "mscorlib" to the targeting pack no matter
+         what HintPath says, so drop {TargetFrameworkDirectory} from the search paths and pull
+         mscorlib/System/System.Core/netstandard out of the game's Managed folder instead.
+         The targeting pack package is still referenced so MSBuild doesn't fail with MSB3644.
+         ===================================================================================== -->
+    <PropertyGroup>
+        <NoStdLib>true</NoStdLib>
+        <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+        <AssemblySearchPaths>{CandidateAssemblyFiles};{HintPathFromItem};{RawFileName}</AssemblySearchPaths>
+    </PropertyGroup>
+
+    <!-- The SDK injects its own hint-less <Reference Include="mscorlib" /> during evaluation,
+         after anything this file declares, so point that item at the game's copy from a target
+         rather than adding a second one (which just warns MSB3245/MSB3243). -->
+    <Target Name="UseGameMscorlib" BeforeTargets="ResolveAssemblyReferences">
+        <ItemGroup>
+            <Reference Condition="'%(Identity)' == 'mscorlib'">
+                <HintPath>$(SevenDTDManagedDir)\mscorlib.dll</HintPath>
+            </Reference>
+        </ItemGroup>
+    </Target>
+
+    <ItemGroup>
+        <Reference Include="System">
+            <HintPath>$(SevenDTDManagedDir)\System.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Core">
+            <HintPath>$(SevenDTDManagedDir)\System.Core.dll</HintPath>
+        </Reference>
+        <Reference Include="netstandard">
+            <HintPath>$(SevenDTDManagedDir)\netstandard.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Supplies the net48 reference assemblies on non-Windows hosts. -->
+        <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48"
+                          Version="1.0.3" PrivateAssets="all" />
+    </ItemGroup>
+
     <ItemGroup>
         <Reference Include="Assembly-CSharp">
             <HintPath>$(SevenDTDManagedDir)\Assembly-CSharp.dll</HintPath>
@@ -48,9 +97,6 @@
         </Reference>
         <Reference Include="LogLibrary">
             <HintPath>$(SevenDTDManagedDir)\LogLibrary.dll</HintPath>
-        </Reference>
-        <Reference Include="mscorlib">
-            <HintPath>$(SevenDTDManagedDir)\mscorlib.dll</HintPath>
         </Reference>
         <Reference Include="UnityEngine">
             <HintPath>$(SevenDTDManagedDir)\UnityEngine.dll</HintPath>
@@ -75,7 +121,7 @@
     <!-- ===================================================== -->
 
     <!--
-      Define deploy targets in your .csproj.user file:
+      Define deploy targets in your .csproj.user file (one per line, semicolon separated):
   
       <Project>
         <PropertyGroup>
@@ -87,15 +133,29 @@
       </Project>
     -->
 
-    <Target Name="DeployModViaXCopy" AfterTargets="Build" Condition="'$(ModDeployTarget)' != ''">
+    <Target Name="DeployMod" AfterTargets="Build" Condition="'$(ModDeployTarget)' != ''">
         <ItemGroup>
             <_DeployTarget Include="$(ModDeployTarget)"/>
+            <_DeployFile Include="$(TargetPath)"/>
+            <_DeployFile Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')"/>
+            <_DeployFile Include="$(ProjectDir)ModInfo.xml"/>
+            <!-- <_DeployFile Include="$(ProjectDir)Preferences.json"/> -->
         </ItemGroup>
-        <Message Text="Deploying HaveYouReadThis to: %(_DeployTarget.Identity)" Importance="High"/>
-        <Exec Command='xcopy "$(TargetPath)" "%(_DeployTarget.Identity)\" /Y /I /R'/>
-        <Exec Command='xcopy "$(ProjectDir)ModInfo.xml" "%(_DeployTarget.Identity)\" /Y /I /R'/>
-        <!-- <Exec Command='xcopy "$(ProjectDir)Preferences.json" "%(_DeployTarget.Identity)\" /Y /I /R'/> -->
-        <!-- <Exec Command='xcopy "$(ProjectDir)Config\*.*" "%(_DeployTarget.Identity)\Config\" /E /Y /I /R'/> -->
+        <!-- A destination opts in by having a .hyrt-deploy-target marker file sitting in it.
+             The marker is what makes an offline machine detectable: an unmounted
+             x-systemd.automount point still exists as an empty stub directory, so Exists() on
+             the folder itself is always true and tells us nothing about reachability. -->
+        <ItemGroup>
+            <_LiveDeployTarget Include="@(_DeployTarget)"
+                               Condition="Exists('%(_DeployTarget.Identity)/.hyrt-deploy-target')"/>
+            <_UnreachableDeployTarget Include="@(_DeployTarget)"
+                               Condition="!Exists('%(_DeployTarget.Identity)/.hyrt-deploy-target')"/>
+        </ItemGroup>
+        <Warning Text="Skipping deploy target - offline, or missing its .hyrt-deploy-target marker: %(_UnreachableDeployTarget.Identity)"
+                 Condition="'@(_UnreachableDeployTarget)' != ''"/>
+        <Message Text="Deploying HaveYouReadThis to: %(_LiveDeployTarget.Identity)" Importance="High"/>
+        <Copy SourceFiles="@(_DeployFile)" DestinationFolder="%(_LiveDeployTarget.Identity)"/>
+        <!-- <Copy SourceFiles="@(_DeployConfig)" DestinationFolder="%(_LiveDeployTarget.Identity)\Config"/> -->
     </Target>
 
 </Project>
